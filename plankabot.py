@@ -1,0 +1,117 @@
+from flask import Flask, request, jsonify
+import json
+import requests
+from app_targets.telegram import send_telegram_notification
+from app_targets.matrix import send_matrix_message
+from utils import get_list_name
+# import logging
+# logging.basicConfig(level=logging.DEBUG)
+
+# Inisialisasi Flask
+app = Flask(__name__)
+
+# Load konfigurasi dari file config.json
+with open('config.json', 'r') as f:
+    config = json.load(f)
+
+planka_config = config['planka']
+
+if config['telegram']['enable'] == True:
+    print('[ ✅ ] Telegram Notification')
+    telegram_config = config['telegram']
+    enableTelegram = True
+else:
+    print('[ ❌ ] Telegram Notification')
+    enableTelegram = False
+
+if config['matrix']['enable'] == True:
+    print('[ ✅ ] Matrix Notification')
+    matrix_config = config['matrix']
+    enableMatrix = True
+else:
+    print('[ ❌ ] Matrix Notification')
+    enableMatrix = False
+
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    print("Webhook called")
+    print("Headers:", request.headers)
+
+    token = request.headers.get("Authorization")
+    if token != f"Bearer {planka_config['access_token']}":
+        print("Invalid token:", token)
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json
+    if not data:
+        print("Invalid payload")
+        return jsonify({"error": "Invalid payload"}), 400
+
+    # print("Received payload:", data)
+
+    # Ekstraksi informasi utama
+    event_type = data.get("event")
+    if event_type == 'cardCreate':
+        eventInfo = "Kartu Baru"
+    if event_type == 'cardUpdate':
+        eventInfo = "Update kartu"
+    if event_type == 'cardDelete':
+        eventInfo = "Hapus kartu"
+
+        
+    item = data.get("data", {}).get("item", {})
+    prev_item = data.get("prevData", {}).get("item", {})
+    included = data.get("data", {}).get("included", {})
+    user = data.get("user", {})
+
+    # Informasi proyek
+    project = next(iter(included.get("projects", [])), {})
+    project_name = project.get("name")
+    lists = included.get("lists", [])
+    board_id = item.get("boardId")
+    project_url = f"{planka_config['base_url']}/boards/{board_id}"
+
+    # Informasi perubahan
+    current_list_id = item.get("listId")
+    previous_list_id = prev_item.get("listId")
+
+    # Ambil nama daftar sebelum dan sesudah
+    previous_list_name = get_list_name(lists, previous_list_id)
+    current_list_name = get_list_name(lists, current_list_id)
+
+    updated_at = item.get("updatedAt")
+    username = user.get("name")
+    item_name = item.get("name", "Unknown Item")
+
+    # Message Format
+    format_message = (
+        f"{eventInfo} oleh {username} \n"
+        f"{item_name} pada {project_name} diperbarui ke {current_list_name}\n\n"
+        f"Detail: ({project_url})"
+    )
+
+    if enableTelegram:
+        # Send notif to Telegram
+        telegram_sent = send_telegram_notification(format_message, config["telegram"]["bot_token"], config["telegram"]["chat_id"])
+        if telegram_sent:
+            print("Pesan berhasil dikirim ke Telegram.")
+        else:
+            print("Gagal mengirim pesan ke Telegram.")
+        return jsonify({"status": "success"}), 200
+
+    if enableMatrix:
+        # Send notif to Matrix
+        matrix_sent = send_matrix_message(format_message, matrix_config)
+        if matrix_sent:
+            print("Update berhasil dikirim ke Matrix.")
+        else:
+            print("Gagal mengirim update ke Matrix.")
+
+        return jsonify({"status": "success"}), 200
+
+
+
+if __name__ == "__main__":
+    print("Starting webhook server...")
+    app.run(debug=False, port=3001)

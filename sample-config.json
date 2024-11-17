@@ -1,0 +1,19 @@
+{
+    "planka": {
+        "access_token": "my_secure_token_123",
+        "base_url": "http://your-planka.url"
+    },
+    "telegram": {
+        "enable": false,
+        "bot_token": "TELEGRAM_BOT_TOKEN",
+        "chat_id": "CHAT_ID"
+    },
+    "matrix": {
+        "enable": true,
+        "host": "https://matrix.org",
+        "user": "@user:matrix.org",
+        "password": "BOTPASSWORD",
+        "token": "USERTOKEN",
+        "room_id": "!RoomID:matrix.org"
+    }
+}
