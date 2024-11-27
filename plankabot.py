@@ -4,13 +4,11 @@ import requests
 from app_targets.telegram import send_telegram_notification
 from app_targets.matrix import send_matrix_message
 from utils import get_list_name
-# import logging
-# logging.basicConfig(level=logging.DEBUG)
 
-# Inisialisasi Flask
+
 app = Flask(__name__)
 
-# Load konfigurasi dari file config.json
+# Load config from config.json
 with open('config.json', 'r') as f:
     config = json.load(f)
 
@@ -50,7 +48,7 @@ def webhook():
 
     # print("Received payload:", data)
 
-    # Ekstraksi informasi utama
+    # Extract main info
     event_type = data.get("event")
     if event_type == 'cardCreate':
         eventInfo = "Kartu Baru"
@@ -65,18 +63,18 @@ def webhook():
     included = data.get("data", {}).get("included", {})
     user = data.get("user", {})
 
-    # Informasi proyek
+    # Project information
     project = next(iter(included.get("projects", [])), {})
     project_name = project.get("name")
     lists = included.get("lists", [])
     board_id = item.get("boardId")
     project_url = f"{planka_config['base_url']}/boards/{board_id}"
 
-    # Informasi perubahan
+    # Update information
     current_list_id = item.get("listId")
     previous_list_id = prev_item.get("listId")
 
-    # Ambil nama daftar sebelum dan sesudah
+    # Get Before After
     previous_list_name = get_list_name(lists, previous_list_id)
     current_list_name = get_list_name(lists, current_list_id)
 
@@ -86,27 +84,27 @@ def webhook():
 
     # Message Format
     format_message = (
-        f"{eventInfo} oleh {username} \n"
-        f"{item_name} pada {project_name} diperbarui ke {current_list_name}\n\n"
-        f"Detail: ({project_url})"
+        f"{eventInfo} by {username} \n"
+        f"{item_name} in {project_name} updated to {current_list_name}\n\n"
+        f"Details: ({project_url})"
     )
 
     if enableTelegram:
         # Send notif to Telegram
         telegram_sent = send_telegram_notification(format_message, config["telegram"]["bot_token"], config["telegram"]["chat_id"])
         if telegram_sent:
-            print("Pesan berhasil dikirim ke Telegram.")
+            print("Update sent successfully to Telegram.")
         else:
-            print("Gagal mengirim pesan ke Telegram.")
+            print("Failed to send notification to Telegram.")
         return jsonify({"status": "success"}), 200
 
     if enableMatrix:
         # Send notif to Matrix
         matrix_sent = send_matrix_message(format_message, matrix_config)
         if matrix_sent:
-            print("Update berhasil dikirim ke Matrix.")
+            print("Update sent successfully to Matrix.")
         else:
-            print("Gagal mengirim update ke Matrix.")
+            print("Failed to send notification to Telegram.")
 
         return jsonify({"status": "success"}), 200
 
