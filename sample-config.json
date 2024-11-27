@@ -1,4 +1,8 @@
 {
+    "bot": {
+        "port": "3003",
+        "route": "/webhook"
+    },
     "planka": {
         "access_token": "my_secure_token_123",
         "base_url": "http://your-planka.url"

@@ -32,8 +32,8 @@ else:
     print('[ ❌ ] Matrix Notification')
     enableMatrix = False
 
-
-@app.route("/webhook", methods=["POST"])
+routPath = config['bot']['route']
+@app.route("/"+routPath, methods=["POST"])
 def webhook():
     print("Webhook called")
     print("Headers:", request.headers)
@@ -114,4 +114,4 @@ def webhook():
 
 if __name__ == "__main__":
     print("Starting webhook server...")
-    app.run(debug=False, port=3001)
+    app.run(debug=False, port=config['bot']['port'])
